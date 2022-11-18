@@ -1,3 +1,5 @@
+use crate::{try_parse, Instruction};
+
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
 pub struct Computer {
@@ -24,6 +26,7 @@ impl Computer {
             pc: 0,
         }
     }
+
     /// Starts executing at memory address 0, and runs until a hault instruction is encountered
     pub fn run(&mut self) {
         loop {
@@ -34,9 +37,41 @@ impl Computer {
         }
     }
 
-    fn fetch_instruction(&self) {}
+    fn fetch_instruction(&mut self) {
+        self.ir = self.load_pc();
+    }
 
-    fn execute_instruction(&self) -> ExecuteResult {
-        return ExecuteResult::Hault;
+    fn execute_instruction(&mut self) -> ExecuteResult {
+        match try_parse(self.ir) {
+            None => panic!("illegal instruction: {:b}", self.ir),
+            Some(ins) => match ins {
+                Instruction::Mathmatical { func, src, dst } => {
+                    // TODO
+                }
+                Instruction::Load { register, method } => {
+                    // TODO
+                }
+                Instruction::Store { register, method } => {
+                    // TODO
+                }
+                Instruction::Branch(kind) => {
+                    // TODO
+                }
+                Instruction::Nop => {
+                    // TODO
+                }
+                Instruction::Hault => {
+                    return ExecuteResult::Hault;
+                }
+            },
+        }
+        return ExecuteResult::Continue;
+    }
+
+    /// Reads a byte by loading the address pointed to by pc and increments pc
+    fn load_pc(&mut self) -> u8 {
+        let byte = self.memory[self.pc];
+        self.pc += 1;
+        byte
     }
 }
