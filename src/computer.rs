@@ -43,7 +43,7 @@ impl Computer {
 
     fn execute_instruction(&mut self) -> ExecuteResult {
         match try_parse(self.ir) {
-            None => panic!("illegal instruction: {:b}", self.ir),
+            None => panic!("illegal instruction: 0b{:b}", self.ir),
             Some(ins) => match ins {
                 Instruction::Mathmatical { func, src, dst } => {
                     // TODO
