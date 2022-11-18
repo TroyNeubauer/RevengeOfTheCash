@@ -58,7 +58,6 @@ impl Computer {
                     // TODO
                 }
                 Instruction::Nop => {
-                    // TODO
                 }
                 Instruction::Hault => {
                     return ExecuteResult::Hault;
