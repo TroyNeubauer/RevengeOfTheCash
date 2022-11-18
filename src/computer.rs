@@ -1,4 +1,6 @@
-use crate::{try_parse, Instruction};
+use std::str::pattern::Searcher;
+
+use crate::{try_parse, Instruction, MemoryMethod, Register};
 
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
@@ -52,8 +54,8 @@ impl Computer {
                     // TODO
                 }
                 Instruction::Store { register, method } => {
-                    // TODO
-                }
+                    //TODO
+                }   
                 Instruction::Branch(kind) => {
                     // TODO
                 }
