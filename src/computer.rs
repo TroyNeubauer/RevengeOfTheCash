@@ -1,13 +1,12 @@
-use crate::{try_parse, Instruction};
-
+use crate::*;
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
 pub struct Computer {
     memory: [u8; MEMORY_SIZE],
-    acc: u8,
+    acc: i8,
     ir: u8,
-    mar: u32,
-    pc: usize,
+    mar: u16,
+    pc: u16,
 }
 
 #[derive(PartialEq, Eq)]
@@ -41,6 +40,11 @@ impl Computer {
         self.ir = self.load_pc();
     }
 
+	fn fetch_16_bits(&mut self) {
+		
+        self.pc = ((self.memory[self.pc as usize] as u16) << 8 + 			 self.memory[(self.pc+1) as usize]) as u16;
+    }
+
     fn execute_instruction(&mut self) -> ExecuteResult {
         match try_parse(self.ir) {
             None => panic!("illegal instruction: 0b{:b}", self.ir),
@@ -56,8 +60,45 @@ impl Computer {
                 }
                 Instruction::Branch(kind) => {
                     // TODO
+					match kind {
+						BranchKind::Bra => {
+							self.fetch_16_bits();
+						}
+						BranchKind::Brz => {
+							if self.acc == 0 {
+								self.fetch_16_bits();
+							}
+						}
+						BranchKind::Bne => {
+							if self.acc != 0 {
+								self.fetch_16_bits();
+							}
+						}
+						BranchKind::Blt => {
+							if self.acc < 0 {
+								self.fetch_16_bits();
+							}
+						}
+						BranchKind::Ble => {
+							if self.acc <= 0 {
+								self.fetch_16_bits();
+							}
+						}
+						BranchKind::Bgt => {
+							if self.acc > 0 {
+								self.fetch_16_bits();
+							}
+						}
+						BranchKind::Bge => {
+							if self.acc >= 0 {
+								self.fetch_16_bits();
+							}
+						}
+					}
+						
                 }
                 Instruction::Nop => {
+                    // TODO
                 }
                 Instruction::Hault => {
                     return ExecuteResult::Hault;
@@ -69,7 +110,7 @@ impl Computer {
 
     /// Reads a byte by loading the address pointed to by pc and increments pc
     fn load_pc(&mut self) -> u8 {
-        let byte = self.memory[self.pc];
+        let byte = self.memory[self.pc as usize];
         self.pc += 1;
         byte
     }
