@@ -1,4 +1,7 @@
+use std::str::pattern::Searcher;
+use crate::{try_parse, Instruction, MemoryMethod, Register};
 use crate::*;
+
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
 pub struct Computer {
@@ -50,14 +53,40 @@ impl Computer {
             None => panic!("illegal instruction: 0b{:b}", self.ir),
             Some(ins) => match ins {
                 Instruction::Mathmatical { func, src, dst } => {
-                    // TODO
+                    let a_value = self.load_target(src);
+                    let b_value = self.load_target(dst);
+                    let dst_value = match func {
+                        MathFunction::Add => a_value.value + b_value.value,
+                        _ => panic!(),
+                    };
+                    MathFunction::Sub => a_value.value - b_value.value,
+                        _ => panic!(),
+                    };
+                    MathFunction::Xor => a_value.value ^ b_value.value,
+                    _ => panic!(),
+                    };
+                    MathFunction::And => a_value.value & b_value.value,
+                    _ => panic!(),
+                    };
+                    MathFunction::Or => a_value.value | b_value.value,
+                    _ => panic!(),
+                    };
+                    MathFunction::Inc => a_value.value++,
+                    _ => panic!(),
+                    };
+                    MathFunction::Dec => a_value.value--,
+                    _ => panic!(),
+                    };
+                    MathFunction::Not => ~a_value.value,
+                    _ => panic!(),
+                    };
                 }
                 Instruction::Load { register, method } => {
                     // TODO
                 }
                 Instruction::Store { register, method } => {
-                    // TODO
-                }
+                    //TODO
+                }   
                 Instruction::Branch(kind) => {
                     // TODO
 					match kind {
@@ -98,7 +127,6 @@ impl Computer {
 						
                 }
                 Instruction::Nop => {
-                    // TODO
                 }
                 Instruction::Hault => {
                     return ExecuteResult::Hault;
@@ -106,6 +134,39 @@ impl Computer {
             },
         }
         return ExecuteResult::Continue;
+    }
+
+        /// Loads the value referenced by target into a target ref containing the value and the address
+    /// used to load the value (if present).
+    fn load_target(&mut self, target: Target) -> TargetRef {
+        match target {
+            Target::Indirect => TargetRef::immediate(self.load_pc()),
+            Target::Acc => TargetRef {
+                value: self.acc,
+                addr: None,
+            },
+            Target::Mar => self.load_target_via_address(self.mar),
+            Target::Memory => {
+                let addr = (self.load_pc() as u16) >> 8 | self.load_pc() as u16;
+                self.load_target_via_address(addr)
+            }
+        }
+    }
+
+    fn load_target_via_address(&self, addr: u16) -> TargetRef {
+        TargetRef {
+            value: self.memory[addr as usize],
+            addr: Some(addr),
+        }
+    }
+
+    /// Stores the
+    fn store_target(&mut self, addr: Option<u16>, value: u8) {
+        if let Some(addr) = addr {
+            self.memory[addr as usize] = value;
+        } else {
+            panic!("Can not store with a non memory operand");
+        }
     }
 
     /// Reads a byte by loading the address pointed to by pc and increments pc
