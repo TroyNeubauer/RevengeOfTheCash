@@ -37,6 +37,10 @@ impl Computer {
         }
     }
 
+    pub fn memory(&self) -> &[u8] {
+        &self.memory
+    }
+
     fn fetch_instruction(&mut self) {
         self.ir = self.load_pc();
     }
