@@ -1,6 +1,6 @@
-use std::str::pattern::Searcher;
-use crate::{try_parse, Instruction, MemoryMethod, Register};
+use crate::{try_parse, Instruction, MathFunction, Target, Register};
 use crate::*;
+use std::str::pattern::Searcher;
 
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
@@ -39,6 +39,10 @@ impl Computer {
         }
     }
 
+    pub fn memory(&self) -> &[u8] {
+        &self.memory
+    }
+
     fn fetch_instruction(&mut self) {
         self.ir = self.load_pc();
     }
@@ -56,6 +60,10 @@ impl Computer {
                     let a_value = self.load_target(src);
                     let b_value = self.load_target(dst);
                     let dst_value = match func {
+                        MathFunction::And => a_value.value + b_value.value,
+                        _ => panic!(),
+                    };
+                    self.store_target(b_value.addr, dst_value);
                         MathFunction::Add => a_value.value + b_value.value,
                         _ => panic!(),
                     };
@@ -136,7 +144,7 @@ impl Computer {
         return ExecuteResult::Continue;
     }
 
-        /// Loads the value referenced by target into a target ref containing the value and the address
+    /// Loads the value referenced by target into a target ref containing the value and the address
     /// used to load the value (if present).
     fn load_target(&mut self, target: Target) -> TargetRef {
         match target {
@@ -174,5 +182,16 @@ impl Computer {
         let byte = self.memory[self.pc as usize];
         self.pc += 1;
         byte
+    }
+}
+
+struct TargetRef {
+    value: u8,
+    addr: Option<u16>,
+}
+
+impl TargetRef {
+    pub fn immediate(value: u8) -> TargetRef {
+        TargetRef { value, addr: None }
     }
 }

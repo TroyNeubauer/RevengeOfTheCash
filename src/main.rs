@@ -13,4 +13,6 @@ fn main() {
 
     let mut computer = Computer::new(memory);
     computer.run();
+    let expected_memory = include!("../mem_out.txt");
+    pretty_assertions::assert_eq!(computer.memory(), expected_memory);
 }
