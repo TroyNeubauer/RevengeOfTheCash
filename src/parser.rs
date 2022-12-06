@@ -41,18 +41,19 @@ pub fn try_parse(opcode: u8) -> Option<Instruction> {
             }
         }
         0b0000_0000..=0b0000_1111 => {
+            println!("{:0b}", opcode);
             // High bit set, followed by any payload bits: math
             let ins = MemoryBits::from_bytes([opcode]);
             dbg!(ins);
             if ins.is_load() == 1 {
                 Instruction::Load {
-                    register: ins.register(),
-                    method: ins.method(),
+                    dst: ins.register(),
+                    src: ins.method(),
                 }
             } else {
-                Instruction::Load {
-                    register: ins.register(),
-                    method: ins.method(),
+                Instruction::Store {
+                    src: ins.register(),
+                    dst: ins.method(),
                 }
             }
         }
@@ -79,8 +80,8 @@ mod tests {
         assert_eq!(
             try_parse(0).unwrap(),
             Instruction::Load {
-                register: Register::Acc,
-                method: MemoryMethod::Address
+                dst: Register::Acc,
+                src: MemoryMethod::Address
             }
         );
     }

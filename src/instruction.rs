@@ -9,12 +9,12 @@ pub enum Instruction {
         dst: Target,
     },
     Load {
-        register: Register,
-        method: MemoryMethod,
+        dst: Register,
+        src: MemoryMethod,
     },
     Store {
-        register: Register,
-        method: MemoryMethod,
+        src: Register,
+        dst: MemoryMethod,
     },
     Branch(BranchKind),
     Nop,
