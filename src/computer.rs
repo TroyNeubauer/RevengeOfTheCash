@@ -1,6 +1,5 @@
-use crate::{try_parse, Instruction, MathFunction, Target, Register};
 use crate::*;
-use std::str::pattern::Searcher;
+use crate::{try_parse, Instruction, MathFunction, Target};
 
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
@@ -47,9 +46,9 @@ impl Computer {
         self.ir = self.load_pc();
     }
 
-	fn fetch_16_bits(&mut self) {
-		
-        self.pc = ((self.memory[self.pc as usize] as u16) << 8 + 			 self.memory[(self.pc+1) as usize]) as u16;
+    fn fetch_16_bits(&mut self) {
+        self.pc = ((self.memory[self.pc as usize] as u16)
+            << 8 + self.memory[(self.pc + 1) as usize]) as u16;
     }
 
     fn execute_instruction(&mut self) -> ExecuteResult {
@@ -60,82 +59,62 @@ impl Computer {
                     let a_value = self.load_target(src);
                     let b_value = self.load_target(dst);
                     let dst_value = match func {
-                        MathFunction::And => a_value.value + b_value.value,
-                        _ => panic!(),
-                    };
-                    self.store_target(b_value.addr, dst_value);
+                        MathFunction::And => a_value.value & b_value.value,
+                        MathFunction::Or => a_value.value | b_value.value,
+                        MathFunction::Xor => a_value.value ^ b_value.value,
                         MathFunction::Add => a_value.value + b_value.value,
-                        _ => panic!(),
+                        MathFunction::Sub => a_value.value - b_value.value,
+                        MathFunction::Inc => a_value.value + 1,
+                        MathFunction::Dec => a_value.value - 1,
+                        MathFunction::Not => !a_value.value,
                     };
-                    MathFunction::Sub => a_value.value - b_value.value,
-                        _ => panic!(),
-                    };
-                    MathFunction::Xor => a_value.value ^ b_value.value,
-                    _ => panic!(),
-                    };
-                    MathFunction::And => a_value.value & b_value.value,
-                    _ => panic!(),
-                    };
-                    MathFunction::Or => a_value.value | b_value.value,
-                    _ => panic!(),
-                    };
-                    MathFunction::Inc => a_value.value++,
-                    _ => panic!(),
-                    };
-                    MathFunction::Dec => a_value.value--,
-                    _ => panic!(),
-                    };
-                    MathFunction::Not => ~a_value.value,
-                    _ => panic!(),
-                    };
+                    self.store_target(a_value.addr, dst_value);
                 }
                 Instruction::Load { register, method } => {
                     // TODO
                 }
                 Instruction::Store { register, method } => {
                     //TODO
-                }   
+                }
                 Instruction::Branch(kind) => {
                     // TODO
-					match kind {
-						BranchKind::Bra => {
-							self.fetch_16_bits();
-						}
-						BranchKind::Brz => {
-							if self.acc == 0 {
-								self.fetch_16_bits();
-							}
-						}
-						BranchKind::Bne => {
-							if self.acc != 0 {
-								self.fetch_16_bits();
-							}
-						}
-						BranchKind::Blt => {
-							if self.acc < 0 {
-								self.fetch_16_bits();
-							}
-						}
-						BranchKind::Ble => {
-							if self.acc <= 0 {
-								self.fetch_16_bits();
-							}
-						}
-						BranchKind::Bgt => {
-							if self.acc > 0 {
-								self.fetch_16_bits();
-							}
-						}
-						BranchKind::Bge => {
-							if self.acc >= 0 {
-								self.fetch_16_bits();
-							}
-						}
-					}
-						
+                    match kind {
+                        BranchKind::Bra => {
+                            self.fetch_16_bits();
+                        }
+                        BranchKind::Brz => {
+                            if self.acc == 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                        BranchKind::Bne => {
+                            if self.acc != 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                        BranchKind::Blt => {
+                            if self.acc < 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                        BranchKind::Ble => {
+                            if self.acc <= 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                        BranchKind::Bgt => {
+                            if self.acc > 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                        BranchKind::Bge => {
+                            if self.acc >= 0 {
+                                self.fetch_16_bits();
+                            }
+                        }
+                    }
                 }
-                Instruction::Nop => {
-                }
+                Instruction::Nop => {}
                 Instruction::Hault => {
                     return ExecuteResult::Hault;
                 }
@@ -150,7 +129,7 @@ impl Computer {
         match target {
             Target::Indirect => TargetRef::immediate(self.load_pc()),
             Target::Acc => TargetRef {
-                value: self.acc,
+                value: self.acc as u8,
                 addr: None,
             },
             Target::Mar => self.load_target_via_address(self.mar),
@@ -195,3 +174,4 @@ impl TargetRef {
         TargetRef { value, addr: None }
     }
 }
+
