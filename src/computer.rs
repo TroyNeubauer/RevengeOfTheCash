@@ -1,11 +1,11 @@
 use crate::*;
-use crate::{try_parse, Instruction, MathFunction, Target};
+use crate::{try_parse, DstTarget, Instruction, MathFunction};
 
 pub const MEMORY_SIZE: usize = 64 * 1024;
 
 pub struct Computer {
     memory: [u8; MEMORY_SIZE],
-    acc: i8,
+    acc: u8,
     ir: u8,
     mar: u16,
     pc: u16,
@@ -34,8 +34,12 @@ impl Computer {
             println!();
             self.fetch_instruction();
             println!();
-            if self.execute_instruction() == ExecuteResult::Hault {
-                break;
+            match self.execute_instruction() {
+                Ok(ExecuteResult::Hault) => break,
+                Ok(ExecuteResult::Continue) => continue,
+                Err(()) => {
+                    break;
+                }
             }
         }
     }
@@ -98,7 +102,7 @@ impl Computer {
         self.memory[addr as usize + 1] = bytes[1];
     }
 
-    fn execute_instruction(&mut self) -> ExecuteResult {
+    fn execute_instruction(&mut self) -> Result<ExecuteResult, ()> {
         println!();
         println!("REGISTERS:");
         println!("PC: 0x{:X}", self.pc);
@@ -107,49 +111,71 @@ impl Computer {
         println!("MAR: 0x{:X}", self.mar);
 
         match try_parse(self.ir) {
-            None => panic!("illegal instruction: 0b{:08b}", self.ir),
+            None => {
+                println!(
+                    "illegal instruction: 0b{:08b} at PC: {:X}",
+                    self.ir, self.pc
+                );
+                return Err(());
+            }
             Some(ins) => {
                 dbg!(&ins);
                 match ins {
                     Instruction::Mathmatical { func, src, dst } => {
                         // Holds the address we most recently fetched from
-                        let mut address = None;
-                        let mut load_target = |src| match src {
-                            Target::Indirect => {
-                                let addr = self.fetch_16(self.mar);
-                                address = Some(addr);
-                                addr
-                            }
-                            Target::Acc => self.acc as u16,
-                            Target::Mar => self.mar,
-                            Target::Memory => {
+                        let a = match src {
+                            SrcTarget::Indirect => self.fetch_8(self.mar) as u16,
+                            SrcTarget::Acc => self.acc as u16,
+                            SrcTarget::Constant => match dst {
+                                // We are storing to an 8 bit register, so only load 16 bits if we
+                                // store 16 bits
+                                DstTarget::Acc => self.fetch_8_pc() as u16,
+                                _ => self.fetch_16_pc(),
+                            },
+                            SrcTarget::Memory => {
                                 let addr = self.fetch_16_pc();
-                                address = Some(addr);
                                 self.fetch_16(addr)
                             }
                         };
-                        let a = load_target(src);
-                        let b = load_target(dst);
+                        // Gets the second opperand for math as well as an address for write back
+                        // if the destination is not a register
+                        let (b, addr) = match dst {
+                            DstTarget::Indirect => (self.fetch_8(self.mar) as u16, Some(self.mar)),
+                            DstTarget::Acc => (self.acc as u16, None),
+                            DstTarget::Mar => (self.mar as u16, None),
+                            DstTarget::Memory => {
+                                let addr = self.fetch_16_pc();
+                                (self.fetch_16(addr), Some(addr))
+                            }
+                        };
+                        dbg!(a, b, addr);
                         let result = match func {
                             MathFunction::And => a & b,
                             MathFunction::Or => a | b,
                             MathFunction::Xor => a ^ b,
-                            MathFunction::Add => a + b,
-                            MathFunction::Sub => a - b,
-                            MathFunction::Inc => a + 1,
-                            MathFunction::Dec => a - 1,
+                            MathFunction::Add => a.wrapping_add(b),
+                            MathFunction::Sub => a.wrapping_sub(b),
+                            MathFunction::Inc => a.wrapping_add(1),
+                            MathFunction::Dec => a.wrapping_sub(1),
                             MathFunction::Not => !a,
                         };
+                        dbg!(result);
                         match dst {
-                            Target::Indirect => {
-                                let addr = address.unwrap();
-                                self.store_16(addr, result);
+                            DstTarget::Indirect => {
+                                self.store_8(addr.unwrap(), result as u8);
+                                panic!();
                             }
-                            Target::Acc => self.acc = result as i8,
-                            Target::Mar => self.mar = result,
-                            Target::Memory => {
-                                let addr = address.unwrap();
-                                self.store_16(addr, result);
+                            DstTarget::Acc => {
+                                self.acc = result as u8;
+                                println!("storing {} into ACC", self.acc);
+                            }
+                            DstTarget::Mar => {
+                                self.mar = result as u16;
+                                println!("storing {} into MAR", self.mar);
+                            }
+                            DstTarget::Memory => {
+                                panic!();
+                                self.store_16(addr.unwrap(), result);
                             }
                         }
                     }
@@ -158,16 +184,16 @@ impl Computer {
                             MemoryMethod::Address => {
                                 let addr = dbg!(self.fetch_16_pc());
                                 match dst {
-                                    Register::Acc => self.acc = dbg!(self.fetch_8(addr) as i8),
+                                    Register::Acc => self.acc = dbg!(self.fetch_8(addr)),
                                     Register::Mar => self.mar = dbg!(self.fetch_16(addr)),
                                 }
                             }
                             MemoryMethod::Constant => match dst {
-                                Register::Acc => self.acc = dbg!(self.fetch_8_pc() as i8),
+                                Register::Acc => self.acc = dbg!(self.fetch_8_pc()),
                                 Register::Mar => self.mar = dbg!(self.fetch_16_pc()),
                             },
                             MemoryMethod::Indirect => match dst {
-                                Register::Acc => self.acc = dbg!(self.fetch_8(self.mar) as i8),
+                                Register::Acc => self.acc = dbg!(self.fetch_8(self.mar)),
                                 Register::Mar => self.mar = dbg!(self.fetch_16(self.mar)),
                             },
                         };
@@ -196,95 +222,50 @@ impl Computer {
                         };
                     }
                     Instruction::Branch(kind) => {
-                        // TODO
+                        let jmp_addr = self.fetch_16_pc();
                         match kind {
                             BranchKind::Bra => {
-                                self.pc = self.fetch_16_pc();
+                                self.pc = jmp_addr;
                             }
                             BranchKind::Brz => {
                                 if self.acc == 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                             BranchKind::Bne => {
                                 if self.acc != 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                             BranchKind::Blt => {
                                 if self.acc < 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                             BranchKind::Ble => {
                                 if self.acc <= 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                             BranchKind::Bgt => {
                                 if self.acc > 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                             BranchKind::Bge => {
                                 if self.acc >= 0 {
-                                    self.pc = self.fetch_16_pc();
+                                    self.pc = jmp_addr;
                                 }
                             }
                         }
                     }
                     Instruction::Nop => {}
                     Instruction::Hault => {
-                        return ExecuteResult::Hault;
+                        return Ok(ExecuteResult::Hault);
                     }
                 }
             }
         }
-        return ExecuteResult::Continue;
-    }
-
-    /// Loads the value referenced by target into a target ref containing the value and the address
-    /// used to load the value (if present).
-    fn load_target(&mut self, target: Target) -> TargetRef {
-        match target {
-            Target::Indirect => TargetRef::immediate(self.fetch_8_pc()),
-            Target::Acc => TargetRef {
-                value: self.acc as u8,
-                addr: None,
-            },
-            Target::Mar => self.load_target_via_address(self.mar),
-            Target::Memory => {
-                let addr = (self.fetch_8_pc() as u16) >> 8 | self.fetch_8_pc() as u16;
-                self.load_target_via_address(addr)
-            }
-        }
-    }
-
-    fn load_target_via_address(&self, addr: u16) -> TargetRef {
-        TargetRef {
-            value: self.memory[addr as usize],
-            addr: Some(addr),
-        }
-    }
-
-    /// Stores the
-    fn store_target(&mut self, addr: Option<u16>, value: u8) {
-        if let Some(addr) = addr {
-            self.memory[addr as usize] = value;
-        } else {
-            panic!("Can not store with a non memory operand");
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-struct TargetRef {
-    value: u8,
-    addr: Option<u16>,
-}
-
-impl TargetRef {
-    pub fn immediate(value: u8) -> TargetRef {
-        TargetRef { value, addr: None }
+        return Ok(ExecuteResult::Continue);
     }
 }

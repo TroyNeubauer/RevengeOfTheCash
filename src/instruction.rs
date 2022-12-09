@@ -5,8 +5,8 @@ use modular_bitfield::prelude::*;
 pub enum Instruction {
     Mathmatical {
         func: MathFunction,
-        src: Target,
-        dst: Target,
+        src: SrcTarget,
+        dst: DstTarget,
     },
     Load {
         dst: Register,
@@ -36,7 +36,16 @@ pub enum MathFunction {
 
 #[derive(BitfieldSpecifier, Copy, Clone, PartialEq, Eq, Debug)]
 #[bits = 2]
-pub enum Target {
+pub enum SrcTarget {
+    Indirect = 0b00,
+    Acc = 0b01,
+    Constant = 0b10,
+    Memory = 0b11,
+}
+
+#[derive(BitfieldSpecifier, Copy, Clone, PartialEq, Eq, Debug)]
+#[bits = 2]
+pub enum DstTarget {
     Indirect = 0b00,
     Acc = 0b01,
     Mar = 0b10,
